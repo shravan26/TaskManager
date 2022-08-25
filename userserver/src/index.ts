@@ -1,5 +1,7 @@
+import 'reflect-metadata';
 import { Request, Response } from 'express';
 import { createServer } from '@src/config/createServer';
+import * as amqp from 'amqplib/callback_api';
 import { InitializeDatabase } from '@src/utils/connections';
 //Initialise port number
 export const PORT = process.env.PORT || 3000;

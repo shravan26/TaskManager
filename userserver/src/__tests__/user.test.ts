@@ -1,10 +1,7 @@
 import { createServer } from '@src/config/createServer';
-import { registerService } from '@src/services/user.service';
 import { testConnection } from '@src/utils/connections';
 import supertest from 'supertest';
-import "reflect-metadata";
 let app = createServer();
-
 beforeAll(async () => {
     await testConnection.create();
     // server = await app.listen(4000);
@@ -18,14 +15,14 @@ let registeredUser = {
     usernameOrEmail: 'shravan26',
     password: 'shravan98',
 };
+let testUser = {
+    name: 'shravan',
+    username: 'shravan26',
+    email: 'shravan@gmail.com',
+    password: 'shravan98',
+};
 describe('POST /register', () => {
     it('should register user if all fields exist', async () => {
-        let testUser = {
-            name: 'shravan',
-            username: 'shravan26',
-            email: 'shravan@gmail.com',
-            password: 'shravan98',
-        };
         const response = await supertest(app).post('/api/users/register').send(testUser);
         expect(response.statusCode).toBe(200);
         expect(response.body.message).toBe('Successfully registered user');
@@ -91,6 +88,8 @@ describe('POST /register', () => {
         expect(response.body[0].field).toBe('password');
         expect(response.body[0].message).toBe('Password should be more than 8 characters');
     });
+    it('should login a registered user', async () => {
+        const loginResponse = await supertest(app).post('/api/users/login').send(registeredUser);
+        expect(loginResponse.statusCode).toBe(200);
+    });
 });
-
-// describe('POST /login', () => {});

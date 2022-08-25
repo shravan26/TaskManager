@@ -1,9 +1,9 @@
+import { AppDataSource } from '@src/data-source';
 import { User } from '@src/entities/User';
 import { validateUserInput } from '@src/utils/validateUserInput';
 import argon2 from 'argon2';
-import { AppDataSource } from '@src/data-source';
 import 'reflect-metadata';
-import { EntityManager, QueryFailedError } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 export interface UserInputParameters {
     name: string;
     username: string;
@@ -23,6 +23,11 @@ export interface SecureUserResponse {
     errors?: FieldError[];
 }
 
+export interface TaskInput {
+    description: string;
+    userId: number;
+}
+
 export interface FieldError {
     field: string;
     message: string;
@@ -31,7 +36,7 @@ export interface FieldError {
 export const queryFailedGuard = (err: unknown): err is QueryFailedError & { code: string } =>
     err instanceof QueryFailedError;
 
-const manager: EntityManager = AppDataSource.manager;
+const UserRepository: Repository<User> = AppDataSource.getRepository(User);
 
 export const registerService = async (inputParameters: UserInputParameters): Promise<UserResponse> => {
     const errors = validateUserInput(inputParameters);
@@ -40,15 +45,15 @@ export const registerService = async (inputParameters: UserInputParameters): Pro
     }
     const { name, username, email, password } = inputParameters;
     const hashedPassword = await argon2.hash(password);
-    let user;
+    let user = new User();
     try {
-        user = await manager.create(User, {
+        UserRepository.merge(user, {
             name,
             username,
             email,
             password: hashedPassword,
         });
-        await manager.save(User, user);
+        await UserRepository.save(user);
     } catch (err) {
         if (queryFailedGuard(err)) {
             if (err.code === '23505') {
@@ -73,38 +78,59 @@ export const registerService = async (inputParameters: UserInputParameters): Pro
 };
 
 export const loginService = async (usernameOrEmail: string, password: string): Promise<SecureUserResponse> => {
-    let user = await manager.findOneBy(
-        User,
-        usernameOrEmail.includes('@') ? { email: usernameOrEmail } : { username: usernameOrEmail }
-    );
-    if (!user) {
+    let user;
+    try {
+        user = await UserRepository.findOneBy(
+            usernameOrEmail.includes('@') ? { email: usernameOrEmail } : { username: usernameOrEmail }
+        );
+        console.log(user);
+        if (!user) {
+            return {
+                errors: [
+                    {
+                        field: 'usernameOrEmail',
+                        message: 'Invalid Username or Email',
+                    },
+                ],
+            };
+        }
+        const valid = await argon2.verify(user.password, password);
+        if (!valid) {
+            return {
+                errors: [
+                    {
+                        field: 'password',
+                        message: 'Invalid password',
+                    },
+                ],
+            };
+        }
+        return {
+            user: {
+                username: user.username,
+                email: user.email,
+                name: user.name,
+            },
+        };
+    } catch (error) {
+        console.error(error);
         return {
             errors: [
                 {
                     field: 'usernameOrEmail',
-                    message: 'Invalid Username or Email',
+                    message: 'Error in logging in',
                 },
             ],
         };
     }
-    const valid = argon2.verify(user.password, password);
-    if (!valid) {
-        return {
-            errors: [
-                {
-                    field: 'password',
-                    message: 'Invalid password',
-                },
-            ],
-        };
-    }
-    return {
-        user: {
-            username: user.username,
-            email: user.email,
-            name: user.name,
-        },
-    };
 };
 
-//@TODO: update user, forget password, deleteAccount, view tasks.
+//@TODO: update user, forget password, deleteAccount, view tasks, create task.
+
+export const createTaskService = async (inputOption: TaskInput) => {
+    const msg = {
+        userId: inputOption.userId,
+        description: inputOption.description,
+    };
+    return msg;
+};

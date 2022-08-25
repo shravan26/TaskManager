@@ -4,6 +4,7 @@ services:
     image: postgres:12.2
     restart: always
     environment:
+      PGUSER: admin
       POSTGRES_DB: users
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
@@ -23,7 +24,17 @@ services:
     ports:
       - "5433:5433"
     command: -p 5433
-
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: 'rabbitmq'
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+      - rabbitmq_go_net
   # pgadmin:
   #   image: dpage/pgadmin4:4.18
   #   restart: always
@@ -37,20 +48,23 @@ services:
   #     - pgadmin-data:/var/lib/pgadmin
   #   links:
   #     - "db:pgsql-server"
-  
-  jenkins: 
-      image: jenkins/jenkins:lts
-      privileged: true
-      user: root
-      ports:
-        - 8080:8080
-        - 50000:50000
-      container_name: jenkins
-      volumes:
-        - jenkins_data:/var/jenkins_home
-        - /usr/bin/docker:/usr/bin/docker
-        - /var/run/docker.sock:/var/run/docker.sock
+
+  # jenkins: 
+  #     image: jenkins/jenkins:lts
+  #     privileged: true
+  #     user: root
+  #     ports:
+  #       - 8080:8080
+  #       - 50000:50000
+  #     container_name: jenkins
+  #     volumes:
+  #       - jenkins_data:/var/jenkins_home
+  #       - /usr/bin/docker:/usr/bin/docker
+  #       - /var/run/docker.sock:/var/run/docker.sock
 volumes:
   db-data:
-  jenkins_data:
-  # pgadmin-data:
+    # jenkins_data:
+    # pgadmin-data:
+networks:
+  rabbitmq_go_net:
+    driver: bridge
